@@ -22,18 +22,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 application.add_handler(CommandHandler("start", start))
 
+# ✅ 只保留这一段 webhook，不要有重复版本
 @flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
     application.create_task(application.process_update(update))
-    return "ok"
-
-
-# webhook 只接收 POST
-@flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
-async def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    await application.process_update(update)
     return "ok"
 
 # 启动入口
