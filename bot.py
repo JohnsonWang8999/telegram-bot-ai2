@@ -8,33 +8,38 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# 环境变量读取
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_SECRET_PATH = os.getenv("WEBHOOK_SECRET_PATH", "myhook")
+WEBHOOK_SECRET_PATH = os.getenv("WEBHOOK_SECRET_PATH", "webhook")
 
-# 创建 bot 应用
 application = ApplicationBuilder().token(TOKEN).build()
 
-# /start 命令
+# 定义指令
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Hello! Bot is running via webhook.")
+    await update.message.reply_text("✅ Hello! Your bot is working via webhook!")
 
-# 添加指令处理器
 application.add_handler(CommandHandler("start", start))
 
-# 创建 Flask app
+# 初始化 Flask 应用
 flask_app = Flask(__name__)
 
 @flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
-def webhook():
-    try:
+async def webhook():
+    if request.method == "POST":
         data = request.get_json(force=True)
         update = Update.de_json(data, application.bot)
-        asyncio.create_task(application.process_update(update))  # ✅关键步骤
-    except Exception as e:
-        print(f"❌ Webhook error: {e}")
+        await application.process_update(update)
     return "ok"
 
-# 初始化 telegram bot（✅必须执行一次）
-asyncio.run(application.initialize())
+# 启动入口
+if __name__ == "__main__":
+    # 必须初始化应用
+    async def main():
+        await application.initialize()
+        await application.start()
+        await application.updater.start_webhook(
+            listen="0.0.0.0",
+            port=int(os.environ.get("PORT", 10000)),
+            webhook_url=f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/{WEBHOOK_SECRET_PATH}"
+        )
 
+    asyncio.run(main())
