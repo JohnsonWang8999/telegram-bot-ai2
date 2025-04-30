@@ -103,7 +103,7 @@ for unit, records in summary.items():
 
 text += f"🧾 所有单位总消费：RM{total_all}"
 
-        await query.edit_message_text(text)
+await query.edit_message_text(text)
     elif action == "add_expense":
         keyboard = [[InlineKeyboardButton(unit, callback_data=f"unit::{unit}")]
                     for unit in available_units]
