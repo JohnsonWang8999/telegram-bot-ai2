@@ -24,10 +24,11 @@ application.add_handler(CommandHandler("start", start))
 
 # ✅ 只保留这一段 webhook，不要有重复版本
 @flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
-def webhook():
+async def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    application.create_task(application.process_update(update))
+    await application.process_update(update)
     return "ok"
+
 
 # 启动入口
 if __name__ == "__main__":
