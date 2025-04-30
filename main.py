@@ -49,8 +49,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "欢迎使用 Short Escape Telegram Bot!\n\n请选择操作：",
-        reply_markup=reply_markup
+        "欢迎使用 Short Escape Telegram Bot!请选择操作：",reply_markup=reply_markup
     )
 
 application.add_handler(CommandHandler("start", start))
@@ -78,8 +77,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = f"📅 {current_month} 消费记录汇总："
         total_all = 0
         for unit, records in summary.items():
-            text += f"
-🏘️ {unit}："
+            text += f"🏘️ {unit}："
             unit_total = 0
             for record in records:
                 text += f" - {record}\n"
