@@ -48,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("欢迎使用 Short Escape Telegram Bot！")
 
-请选择操作：", reply_markup=reply_markup)
+请选择操作:", reply_markup=reply_markup)
 
 application.add_handler(CommandHandler("start", start))
 
