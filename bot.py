@@ -26,8 +26,11 @@ application.add_handler(CommandHandler("start", start))
 @flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
 async def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
+    if not application.running:
+        await application.initialize()
     await application.process_update(update)
     return "ok"
+
 
 
 # 启动入口
