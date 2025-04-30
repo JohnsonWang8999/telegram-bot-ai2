@@ -1,6 +1,4 @@
-# 以下是修复过 global 声明顺序错误的完整 main.py 程序
 
-main_py_content = """
 import os
 import json
 from flask import Flask, request
@@ -45,7 +43,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 切换月份", callback_data="switch_month")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("欢迎使用 Short Escape Telegram Bot!\\n\\n请选择操作：", reply_markup=reply_markup)
+    await update.message.reply_text("欢迎使用 Short Escape Telegram Bot!\n\n请选择操作：", reply_markup=reply_markup)
 
 application.add_handler(CommandHandler("start", start))
 
@@ -82,10 +80,10 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     subtotal += float(record.split("RM")[-1])
                 except:
                     pass
-            result.append(f"  总额：RM{subtotal:.2f}\\n")
+            result.append(f"  总额：RM{subtotal:.2f}\n")
             total_all += subtotal
         result.append(f"💰 所有单位总额：RM{total_all:.2f}")
-        await query.edit_message_text("\\n".join(result))
+        await query.edit_message_text("\n".join(result))
 
     elif data == "switch_month":
         month_keyboard = [
@@ -131,9 +129,3 @@ if __name__ == "__main__":
         await application.bot.set_webhook(url=f"{BASE_URL}/{WEBHOOK_SECRET_PATH}")
         flask_app.run(host="0.0.0.0", port=PORT)
     asyncio.run(run())
-"""
-
-with open("/mnt/data/main.py", "w") as f:
-    f.write(main_py_content)
-
-"/mnt/data/main.py"
