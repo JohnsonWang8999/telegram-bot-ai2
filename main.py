@@ -1,145 +1,120 @@
 import os
-import json
 import asyncio
-import datetime
 from flask import Flask, request
-from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters, ContextTypes
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
 )
+from datetime import datetime
 import pandas as pd
-from pathlib import Path
+from collections import defaultdict
 
-# === 环境变量 ===
+# === 配置 ===
 TOKEN = os.getenv("BOT_TOKEN")
 WEBHOOK_SECRET_PATH = os.getenv("WEBHOOK_SECRET_PATH", "myhook")
 PORT = int(os.environ.get("PORT", 10000))
 BASE_URL = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}"
 
+# === 数据结构 ===
+expenses = defaultdict(lambda: defaultdict(list))  # expenses[month][unit] = list of expenses
+user_states = {}
+
+UNITS = [
+    "Danga Bay 16A-01-02",
+    "Danga Bay 7A-18-03A",
+    "Danga Bay 17C-19-02",
+    "RNF 6A-13A-09",
+    "RNF B1-1 23-06",
+]
+current_month = datetime.now().strftime("%Y-%m")
+
+# === Flask + Telegram 应用 ===
 flask_app = Flask(__name__)
 application = ApplicationBuilder().token(TOKEN).build()
 
-# === 常量配置 ===
-RECORD_FILE = "records.json"
-UNIT_MAP = {
-    "1": "Danga Bay 16A-01-02",
-    "2": "Danga Bay 7A-18-03A",
-    "3": "Danga Bay 17C-19-02",
-    "4": "RNF 6A-13A-09",
-    "5": "RNF B1-1 23-06",
-    "6": "testing（测试专用）",
-}
-
-# === 全局缓存 ===
-user_state = {}
-
-# === 工具方法 ===
-def load_data():
-    if Path(RECORD_FILE).exists():
-        with open(RECORD_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-def save_data(data):
-    with open(RECORD_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def current_ym():
-    return datetime.datetime.now().strftime("%Y-%m")
-
-# === /start 指令 ===
+# === 指令 /start ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📂 查看账单", callback_data="view")],
-        [InlineKeyboardButton("📝 记录消费", callback_data="add")],
-        [InlineKeyboardButton("📅 切换月份", callback_data="switch")],
+        [InlineKeyboardButton("📝 记录消费", callback_data="record")],
+        [InlineKeyboardButton("📅 切换月份", callback_data="switch_month")]
     ]
     await update.message.reply_text(
         "欢迎使用 Short Escape Telegram Bot!\n\n请选择操作：",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# === 按钮逻辑 ===
-async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+application.add_handler(CommandHandler("start", start))
+
+# === 按钮处理 ===
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    data = query.data
+
     user_id = query.from_user.id
 
-    if query.data == "add":
-        # 弹出单位列表
-        buttons = [
-            [InlineKeyboardButton(name, callback_data=f"unit_{uid}")]
-            for uid, name in UNIT_MAP.items()
-        ]
+    if data == "record":
+        user_states[user_id] = {"action": "record"}
+        buttons = [[InlineKeyboardButton(unit, callback_data=f"unit_{unit}")] for unit in UNITS]
         await query.edit_message_text("请选择房源单位：", reply_markup=InlineKeyboardMarkup(buttons))
 
-    elif query.data.startswith("unit_"):
-        unit_id = query.data.split("_")[1]
-        user_state[user_id] = {"unit": UNIT_MAP[unit_id], "step": "waiting_expense"}
+    elif data.startswith("unit_"):
+        unit = data.replace("unit_", "")
+        user_states[user_id]["unit"] = unit
+        user_states[user_id]["awaiting_expense"] = True
         await query.edit_message_text(f"请输入消费内容，例如：换灯泡 RM100")
 
-    elif query.data == "view":
-        data = load_data()
-        ym = current_ym()
-        summary = f"📆 {ym} 账单汇总：\n"
-        all_records = data.get(ym, {})
-        total = 0
-        for unit, records in all_records.items():
-            unit_total = sum([int(r["amount"]) for r in records])
-            summary += f"\n🏠 {unit}:\n"
-            for r in records:
-                summary += f"  - {r['item']} RM{r['amount']}\n"
-            summary += f"  💰小计：RM{unit_total}\n"
-            total += unit_total
-        summary += f"\n📊 总消费：RM{total}"
-        await query.edit_message_text(summary or "暂无数据。")
+    elif data == "view":
+        text = f"月份：{current_month}\n\n"
+        total_all = 0
+        for unit, records in expenses[current_month].items():
+            total = sum(float(r.split("RM")[-1]) for r in records)
+            total_all += total
+            text += f"【{unit}】\n" + "\n".join(records) + f"\n小计：RM{total:.2f}\n\n"
+        text += f"总计：RM{total_all:.2f}"
+        await query.edit_message_text(text)
 
-    elif query.data == "switch":
-        await query.edit_message_text("📅 功能开发中：将支持手动切换月份")
+    elif data == "switch_month":
+        months = pd.date_range("2025-01-01", periods=24, freq='MS').strftime("%Y-%m").tolist()
+        buttons = [[InlineKeyboardButton(m, callback_data=f"month_{m}")] for m in months]
+        await query.edit_message_text("请选择月份：", reply_markup=InlineKeyboardMarkup(buttons))
 
-# === 处理文本 ===
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    text = update.message.text.strip()
+    elif data.startswith("month_"):
+        global current_month
+        current_month = data.replace("month_", "")
+        await query.edit_message_text(f"已切换至 {current_month}。")
 
-    if user_id in user_state and user_state[user_id].get("step") == "waiting_expense":
-        unit = user_state[user_id]["unit"]
-        ym = current_ym()
-        data = load_data()
-        data.setdefault(ym, {}).setdefault(unit, [])
-        # 自动识别金额（默认最后一个数字是金额）
-        parts = text.strip().rsplit(" RM", 1)
-        if len(parts) != 2 or not parts[1].isdigit():
-            await update.message.reply_text("❌ 格式错误，请用 '事项 RM金额' 格式。")
-            return
-        item, amount = parts
-        data[ym][unit].append({"item": item.strip(), "amount": int(amount)})
-        save_data(data)
-        del user_state[user_id]
-        await update.message.reply_text("✅ 记录成功！")
+application.add_handler(CallbackQueryHandler(handle_buttons))
 
-# === 注册 ===
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CallbackQueryHandler(handle_button))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+# === 消息处理 ===
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    if user_id in user_states and user_states[user_id].get("awaiting_expense"):
+        unit = user_states[user_id]["unit"]
+        expenses[current_month][unit].append(update.message.text)
+        await update.message.reply_text("✅ 消费记录成功！")
+        user_states[user_id]["awaiting_expense"] = False
 
-# === webhook ===
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+# === Webhook Endpoint ===
 @flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    if not application.running:
-        asyncio.run(application.initialize())
-    asyncio.run(application.process_update(update))
+    asyncio.create_task(application.process_update(update))
     return "ok"
 
-# === 启动 ===
-if __name__ == "__main__":
-    async def run():
-        print(f"==> Setting webhook to {BASE_URL}/{WEBHOOK_SECRET_PATH}")
-        await application.bot.set_webhook(url=f"{BASE_URL}/{WEBHOOK_SECRET_PATH}")
-        flask_app.run(host="0.0.0.0", port=PORT)
+# === 设定 Webhook 并启动 Flask ===
+async def set_webhook():
+    await application.bot.set_webhook(f"{BASE_URL}/{WEBHOOK_SECRET_PATH}")
 
-    asyncio.run(run())
+asyncio.get_event_loop().create_task(set_webhook())
+
+import threading
+threading.Thread(target=lambda: flask_app.run(host="0.0.0.0", port=PORT)).start()
