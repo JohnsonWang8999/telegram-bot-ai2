@@ -85,8 +85,24 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 unit_total += amount
             text += f" ➕ 小计：RM{unit_total:.2f}\n"
             total_all += unit_total
-        text += f"
-💰 总消费：RM{total_all:.2f}"
+        text = f"📅 {current_month} 消费记录汇总：\n\n"
+total_all = 0
+
+for unit, records in summary.items():
+    text += f"🏘️ {unit}：\n"
+    unit_total = 0
+    for record in records:
+        text += f" - {record}\n"
+        try:
+            amount = float(record.split("RM")[-1])
+            unit_total += amount
+        except:
+            pass
+    text += f"💰 总计：RM{unit_total}\n\n"
+    total_all += unit_total
+
+text += f"🧾 所有单位总消费：RM{total_all}"
+
         await query.edit_message_text(text)
     elif action == "add_expense":
         keyboard = [[InlineKeyboardButton(unit, callback_data=f"unit::{unit}")]
