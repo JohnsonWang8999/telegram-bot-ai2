@@ -1,29 +1,32 @@
 import os
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
 
-TOKEN = os.getenv("TOKEN")
-WEBHOOK_SECRET_PATH = os.getenv("WEBHOOK_SECRET_PATH")
-
-app = Flask(__name__)
+TOKEN = os.getenv("BOT_TOKEN")
+WEBHOOK_SECRET_PATH = os.getenv("WEBHOOK_SECRET_PATH", "webhook")
 
 application = ApplicationBuilder().token(TOKEN).build()
 
-@app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
-async def webhook() -> str:
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    await application.process_update(update)
-    return "OK"
-
+# Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📘 Hello! Bot is working.")
+    await update.message.reply_text("Hello! Bot is running via webhook.")
 
 application.add_handler(CommandHandler("start", start))
 
+# Flask app for webhook
+flask_app = Flask(__name__)
+
+@flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
+def webhook():
+    if request.method == "POST":
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.update_queue.put_nowait(update)
+    return "ok"
+
 if __name__ == "__main__":
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=10000,
-        webhook_url=f"https://your-domain.com/{WEBHOOK_SECRET_PATH}"
-    )
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
