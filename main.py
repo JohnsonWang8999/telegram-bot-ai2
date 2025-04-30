@@ -62,13 +62,13 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 application.add_handler(CallbackQueryHandler(handle_button))
 
-# === Webhook 入口 ===
+# ✅ 修复这里：改成同步函数
 @flask_app.route(f"/{WEBHOOK_SECRET_PATH}", methods=["POST"])
-async def webhook():
+def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
     if not application.running:
-        await application.initialize()
-    await application.process_update(update)
+        application.initialize()
+    application.process_update(update)
     return "ok"
 
 # === 启动入口 ===
