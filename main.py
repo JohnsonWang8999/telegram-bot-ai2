@@ -46,7 +46,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📥 下载Excel", callback_data="download")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("欢迎使用 Short Escape Telegram Bot!
+    await update.message.reply_text("欢迎使用 Short Escape Telegram Bot)
 
 请选择操作：", reply_markup=reply_markup)
 
