@@ -75,13 +75,11 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("📂 当前月份尚无记录。")
             return
 
-        text = f"📅 {current_month} 消费记录汇总：
-"
+        text = f"📅 {current_month} 消费记录汇总："
         total_all = 0
         for unit, records in summary.items():
             text += f"
-🏘️ {unit}：
-"
+🏘️ {unit}："
             unit_total = 0
             for record in records:
                 text += f" - {record}\n"
