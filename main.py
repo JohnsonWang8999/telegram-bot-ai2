@@ -49,9 +49,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 切换月份", callback_data="switch_month")],
     ]
     await update.message.reply_text(
-        "欢迎使用 Short Escape Telegram Bot!
-
-请选择操作：",
+        "欢迎使用 Short Escape Telegram Bot!请选择操作：",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
